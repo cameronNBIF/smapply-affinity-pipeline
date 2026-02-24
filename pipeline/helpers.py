@@ -1,7 +1,7 @@
 import re
 import pandas as pd
 from affinity.find_or_create import find_or_create_organization, find_or_create_person
-from affinity.update import update_affinity_field
+from affinity.update import batch_update_affinity_fields, update_affinity_field
 from config import AFFINITY_IVF_LIST_ID, FIELD_MAPPING
 
 def safe_str(val, default=None):
@@ -60,18 +60,55 @@ def build_location_payload(row) -> dict:
     }
 
 def push_custom_fields(row, list_entry_id) -> list:
-    """Iterates over the FIELD_MAPPING config to push all values to Affinity."""
-    updated_fields = []
+    """Formats all custom fields and pushes them to Affinity in a single batch request."""
+    updates_payload = []
+    updated_field_names = []
+    
     for smapply_key, mapping in FIELD_MAPPING.items():
         if smapply_key not in row or pd.isna(row[smapply_key]):
             continue
-        
+            
         val = row[smapply_key]
         field_id = str(mapping['field_id'])
         field_type = mapping['type']
         
-        success = update_affinity_field(AFFINITY_IVF_LIST_ID, list_entry_id, field_id, val, field_type)
-        if success:
-            updated_fields.append(smapply_key)
+        # 1. Format the data based on type
+        if str(val).lower() == 'nan' or str(val).strip() == "":
+            continue
             
-    return updated_fields
+        formatted_data = val
+        if field_type == 'number':
+            formatted_data = float(val)
+        elif field_type == 'text':
+            formatted_data = str(val)
+        elif field_type in ['person', 'company']:
+            formatted_data = {"id": int(float(val))}
+        elif field_type == 'location':
+            formatted_data = val
+        elif field_type == 'datetime' or field_type == 'date':
+            try:
+                parsed_date = pd.to_datetime(val)
+                if field_type == 'datetime':
+                    formatted_data = parsed_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+                else:
+                    formatted_data = parsed_date.strftime('%Y-%m-%d')
+            except Exception:
+                continue
+                
+        # 2. Add to the payload array
+        updates_payload.append({
+            "id": field_id,
+            "value": {
+                "type": field_type,
+                "data": formatted_data
+            }
+        })
+        updated_field_names.append(smapply_key)
+        
+    # 3. Send the single batch request
+    if updates_payload:
+        success = batch_update_affinity_fields(AFFINITY_IVF_LIST_ID, list_entry_id, updates_payload)
+        if success:
+            return updated_field_names
+            
+    return []

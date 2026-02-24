@@ -1,12 +1,20 @@
 import os
 import requests
-from dotenv import load_dotenv
+import logging
 from typing import Dict, List
+from dotenv import load_dotenv
 
 load_dotenv()
 
 AFFINITY_BASE_URL = os.environ.get("AFFINITY_BASE_URL", "https://api.affinity.co")
+if not AFFINITY_BASE_URL:
+    logging.error("AFFINITY_BASE_URL is not set. Please set it in your environment variables.")
+    raise ValueError("AFFINITY_BASE_URL is not set. Please set it in your environment variables.")
+
 AFFINITY_TOKEN = os.environ.get("AFFINITY_ACCESS_TOKEN")
+if not AFFINITY_TOKEN:
+    logging.error("AFFINITY_ACCESS_TOKEN is not set. Please set it in your environment variables.")
+    raise ValueError("AFFINITY_ACCESS_TOKEN is not set. Please set it in your environment variables.")
 
 AFFINITY_HEADERS = {
     "Authorization": f"Bearer {AFFINITY_TOKEN}",
@@ -18,7 +26,6 @@ def get_affinity_list_entries(list_id: str) -> List[Dict]:
     url = f"{AFFINITY_BASE_URL}/v2/lists/{list_id}/list-entries"
     params = {"limit": 100}
     all_entries = []
-    print("Using version 2")
     while url:
         r = requests.get(url, headers=AFFINITY_HEADERS, params=params, timeout=30)
         params = None

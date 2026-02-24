@@ -1,20 +1,41 @@
 import os
 import requests
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
 
 AFFINITY_BASE_URL = os.environ.get("AFFINITY_BASE_URL", "https://api.affinity.co")
+if not AFFINITY_BASE_URL:
+    logging.error("AFFINITY_BASE_URL is not set. Please set it in your environment variables.")
+    raise ValueError("AFFINITY_BASE_URL is not set. Please set it in your environment variables.")
+
 AFFINITY_TOKEN = os.environ.get("AFFINITY_ACCESS_TOKEN")
+if not AFFINITY_TOKEN:
+    logging.error("AFFINITY_ACCESS_TOKEN is not set. Please set it in your environment variables.")
+    raise ValueError("AFFINITY_ACCESS_TOKEN is not set. Please set it in your environment variables.")
 
 AFFINITY_HEADERS = {
     "Authorization": f"Bearer {AFFINITY_TOKEN}",
     "Content-Type": "application/json"
 }
 
+_entity_cache = {
+    "persons": {},       
+    "organizations": {},  
+    "hits": 0  # <-- NEW: Track how many API calls we dodge!
+}
+
 def find_or_create_person(first_name: str, last_name: str, email: str) -> int:
     if not email:
         return None
+        
+    cache_key = email.strip().lower()
+    
+    # Check RAM before hitting the API!
+    if cache_key in _entity_cache["persons"]:
+        _entity_cache["hits"] += 1 
+        return _entity_cache["persons"][cache_key]
         
     search_url = f"{AFFINITY_BASE_URL}/persons"
     params = {"term": email}
@@ -26,7 +47,9 @@ def find_or_create_person(first_name: str, last_name: str, email: str) -> int:
         
         persons_list = results.get("persons", []) if isinstance(results, dict) else results
         if persons_list:
-            return persons_list[0]["id"]
+            person_id = persons_list[0]["id"]
+            _entity_cache["persons"][cache_key] = person_id # Save to cache
+            return person_id
             
         payload = {
             "first_name": first_name or "Unknown",
@@ -36,15 +59,25 @@ def find_or_create_person(first_name: str, last_name: str, email: str) -> int:
         
         r_create = requests.post(search_url, headers=AFFINITY_HEADERS, json=payload, timeout=30)
         r_create.raise_for_status()
-        return r_create.json()["id"]
+        new_person_id = r_create.json()["id"]
+        
+        _entity_cache["persons"][cache_key] = new_person_id # Save to cache
+        return new_person_id
         
     except requests.exceptions.RequestException as e:
-        print(f"    [!] Error finding/creating person ({email}): {e}")
+        logging.error(f"Could notfind/create person ({email}): {e}")
         return None
 
 def find_or_create_organization(company_name: str, email: str = None) -> int:
     if not company_name:
         return None
+        
+    cache_key = company_name.strip().lower()
+    
+    # Check RAM before hitting the API!
+    if cache_key in _entity_cache["organizations"]:
+        _entity_cache["hits"] += 1 
+        return _entity_cache["organizations"][cache_key]
         
     search_url = f"{AFFINITY_BASE_URL}/organizations"
     params = {"term": company_name}
@@ -56,8 +89,10 @@ def find_or_create_organization(company_name: str, email: str = None) -> int:
         
         org_list = results.get("organizations", []) if isinstance(results, dict) else results
         for org in org_list:
-            if isinstance(org, dict) and org.get("name", "").strip().lower() == company_name.strip().lower():
-                return org["id"]
+            if isinstance(org, dict) and org.get("name", "").strip().lower() == cache_key:
+                org_id = org["id"]
+                _entity_cache["organizations"][cache_key] = org_id # Save to cache
+                return org_id
                 
         payload = {"name": company_name}
         free_email_providers = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com"]
@@ -68,10 +103,12 @@ def find_or_create_organization(company_name: str, email: str = None) -> int:
                 
         r_create = requests.post(search_url, headers=AFFINITY_HEADERS, json=payload, timeout=30)
         r_create.raise_for_status()
-        return r_create.json()["id"]
+        new_org_id = r_create.json()["id"]
+        _entity_cache["organizations"][cache_key] = new_org_id # Save to cache
+        return new_org_id
         
     except requests.exceptions.RequestException as e:
-        print(f"    [!] Error finding/creating company ({company_name}): {e}")
+        logging.error(f"Could not find/create company ({company_name}): {e}")
         return None
     
 def create_opportunity_list_entry(list_id: str, opp_name: str, org_id: int, person_id: int) -> str:
@@ -102,12 +139,16 @@ def create_opportunity_list_entry(list_id: str, opp_name: str, org_id: int, pers
                     return str(entry["id"])
             return str(list_entries[0]["id"]) # Fallback
             
-        print("    ! Created opportunity, but could not parse list_entry_id from response.")
+        logging.info("    ! Created opportunity, but could not parse list_entry_id from response.")
         return None
         
     except requests.exceptions.RequestException as e:
         error_msg = str(e)
         if hasattr(e, 'response') and hasattr(e.response, 'text'):
             error_msg = e.response.text
-        print(f"    X Error creating Opportunity: {error_msg[:200]}")
+        logging.error(f"Could not create Opportunity: {error_msg[:200]}")
         return None
+    
+def get_cache_stats():
+    """Safely retrieves the cache hits counter."""
+    return _entity_cache.get("hits", 0)

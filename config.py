@@ -158,3 +158,5 @@ REGIONS = [
     "NW",
     "NE"
 ]
+
+STATE_FILE = "sync_state.json"

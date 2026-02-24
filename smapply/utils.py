@@ -1,7 +1,5 @@
 import pandas as pd
 import re
-import time
-import sys
 import readchar
 from config import YEARS, REGIONS
 

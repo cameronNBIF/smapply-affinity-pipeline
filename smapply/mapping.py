@@ -2,6 +2,10 @@ from datetime import datetime
 from smapply.utils import choose_region
 
 def map_selector_of_research(selector_of_research_task, sector_mapping):
+    #guard clause to prevent NoneType crashes
+    if not selector_of_research_task or len(selector_of_research_task) == 0:
+        return None
+
     data = selector_of_research_task[0].get("data", {})
 
     for field in data.values():
@@ -12,7 +16,7 @@ def map_selector_of_research(selector_of_research_task, sector_mapping):
             if 0 <= response < len(sector_list):
                 return sector_list[response]
     
-    return None  #for when no valid mapping was found
+    return None
 
 def map_city_to_region(city, city_to_region_mapping):
     if city is None or str(city).strip() == "":

@@ -1,12 +1,21 @@
 import os
 import requests
+import time
+import logging
 import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
 
 AFFINITY_BASE_URL = os.environ.get("AFFINITY_BASE_URL", "https://api.affinity.co")
+if not AFFINITY_BASE_URL:
+    logging.error("AFFINITY_BASE_URL is not set. Please set it in your environment variables.")
+    raise ValueError("AFFINITY_BASE_URL is not set. Please set it in your environment variables.")
+
 AFFINITY_TOKEN = os.environ.get("AFFINITY_ACCESS_TOKEN")
+if not AFFINITY_TOKEN:
+    logging.error("AFFINITY_ACCESS_TOKEN is not set. Please set it in your environment variables.")
+    raise ValueError("AFFINITY_ACCESS_TOKEN is not set. Please set it in your environment variables.")
 
 AFFINITY_HEADERS = {
     "Authorization": f"Bearer {AFFINITY_TOKEN}",
@@ -35,7 +44,7 @@ def update_affinity_field(list_id: str, list_entry_id: str, field_id: str, value
             else:
                 formatted_data = parsed_date.strftime('%Y-%m-%d')
         except Exception:
-            print(f"      [!] Skipping invalid date format: '{value}'")
+            logging.warning(f"      [!] Skipping invalid date format: '{value}'")
             return True
 
     url = f"{AFFINITY_BASE_URL}/v2/lists/{list_id}/list-entries/{list_entry_id}/fields"
@@ -52,5 +61,36 @@ def update_affinity_field(list_id: str, list_entry_id: str, field_id: str, value
         error_msg = str(e)
         if hasattr(e, 'response') and hasattr(e.response, 'text'):
             error_msg = e.response.text
-        print(f"      [X] Field Update Error ({field_type}):\n      {error_msg}")
+        logging.error(f"      [X] Field Update Error ({field_type}):\n      {error_msg}")
         return False
+    
+def batch_update_affinity_fields(list_id: str, list_entry_id: str, formatted_updates: list) -> bool:
+    """Sends a single PATCH request to update multiple fields at once (with retry logic)."""
+    if not formatted_updates:
+        return True 
+        
+    url = f"{AFFINITY_BASE_URL}/v2/lists/{list_id}/list-entries/{list_entry_id}/fields"
+    payload = {
+        "operation": "update-fields",
+        "updates": formatted_updates
+    }
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            r = requests.patch(url, json=payload, headers=AFFINITY_HEADERS, timeout=30)
+            r.raise_for_status()
+            return True
+        except requests.exceptions.RequestException as e:
+            error_msg = str(e)
+            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                error_msg = e.response.text
+            
+            # If Affinity says "not-found", their backend is lagging. Wait 2 seconds and retry.
+            if "not-found" in error_msg and attempt < max_retries - 1:
+                logging.info(f"      [~] Affinity database syncing, retrying update ({attempt + 1}/{max_retries})")
+                time.sleep(2)
+                continue
+                
+            logging.error(f"Batch Field Update:\n      {error_msg}")
+            return False

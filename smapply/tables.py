@@ -3,20 +3,15 @@ from smapply.tasks import get_application_task, get_application_task_ID, get_tas
 from smapply.mapping import map_fiscal_year, map_province, map_city_to_region, map_decision_date, map_selector_of_research
 from config import SECTOR_MAPPING, PROVINCE_MAPPING, CITY_TO_REGION_MAPPING
 from smapply.utils import clean_email, clean_value
+import logging
 
 def get_investment(application, tasks, application_form_task, id):
     if not application:
-        print(f"Skipping empty application: {id}")
+        logging.info(f"Skipping empty application: {id}")
         return None
 
     # 1. IDENTIFY THE CURRENT STAGE
     current_stage = application.get('current_stage', {}).get('title', 'Unknown Stage')
-
-    logic_level = 1 
-    if 'Review' in current_stage:
-        logic_level = 2
-    elif 'Contract Complete' in current_stage or 'Complete' in current_stage or 'Final Report' in current_stage:
-        logic_level = 3
 
     # 2. INITIALIZE BASE DICTIONARY
     app_data = {
@@ -75,7 +70,7 @@ def get_investment(application, tasks, application_form_task, id):
             try:
                 app_data['ApplDate'] = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%S")
             except (ValueError, TypeError):
-                print(f"Unexpected created_at format for application {id}: {created_at}")
+                logging.info(f"Unexpected created_at format for application {id}: {created_at}")
 
     # 5. EXTRACT STAGE 3 SPECIFICS (Only runs if logic_level is high enough)
     decision = application.get('decision') or {}
@@ -95,7 +90,7 @@ def get_investment(application, tasks, application_form_task, id):
             app_data['TotalLevAmt'] = amount_awarded / 4 if amount_awarded > 0 else 0.00
             app_data['PrivSectorLev'] = app_data['TotalLevAmt']
         except Exception as e:
-            print(f"Could not clean awarded value for application {id}: {awarded_val} ({e})")
+            logging.error(f"Could not clean awarded value for application {id}: {awarded_val} ({e})")
     else:
         app_data['AwardResult'] = False
 
