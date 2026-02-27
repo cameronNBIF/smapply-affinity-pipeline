@@ -45,6 +45,7 @@ You must manually create a blob container named **`pipeline-state`**. Inside thi
     "access_token": "your_initial_access_token",
     "refresh_token": "your_initial_refresh_token"
 }
+```
 
 ## Environment Variables
 
@@ -60,25 +61,23 @@ The pipeline relies on the following environment variables. Locally, these are m
 | AZURE_STORAGE_CONNECTION_STRING | Connection string for the Storage Account hosting the state blob |
 
 ## Local Development & Testing
-# Installation
+### Installation
 1. Clone the repository.
 2. Install the development requirements:
 `pip install  -r requirements-dev.txt`
 
-# Running Locally
+### Running Locally
 To execute the pipeline manually from your terminal, run:
 `func start`
 
-# Running Tests
+### Running Tests
 The project uses `pytest` for validation, relying on `unittest.mock` to simulate API payloads without executing external HTTP requests. To run the test suite:
 `python -m pytest`
 
 ## Deployment Notes (Azure Functions)
-# Trigger:
+### Trigger:
 Configured as a Timer Trigger via function_app.py.
-# Logging:
+### Logging:
 `host.json` is configured to suppress verbose Information level HTTP logs from the azure.core libraries to prevent log flooding.
-# Dependencies:
+### Dependencies:
 Azure will automatically install packages defined in requirements.txt during deployment.
-
-
