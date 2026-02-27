@@ -1,29 +1,26 @@
-import logging
+from smapply.program import get_program_ID, get_program_applications, filter_program_applications, process_program_applications
+from pipeline.sync import sync_ivf_to_affinity, get_last_sync_time, update_last_sync_time
 from datetime import datetime
 import pandas as pd
 import time
-from smapply.program import get_program_ID, get_program_applications, filter_program_applications, process_program_applications
-from pipeline.sync import sync_ivf_to_affinity, get_last_sync_time, update_last_sync_time
+import logging
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+logging.getLogger("azure.storage").setLevel(logging.WARNING)
 
 def main():
-    logging.basicConfig(level=logging.INFO)
-
-    logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
-    logging.getLogger('azure.storage.blob').setLevel(logging.WARNING)
-    
     total_start = time.time()
     
     logging.info("Fetching IVF Program ID")
     ivf_program_id = get_program_ID('Innovation Voucher Fund')
     
-    logging.info("Fetching raw applications from SurveyMonkey Apply")
+    logging.info("Fetching applications from SurveyMonkey Apply")
     responses = get_program_applications(ivf_program_id)
     
-    logging.info("Filtering and extracting data...")
+    logging.info("Filtering and extracting data from applications")
     all_applications_full = filter_program_applications(responses) 
     
     if not all_applications_full:
-        logging.error("\nERROR: No applications found in SurveyMonkey Apply!")
+        logging.error("\nERROR: No applications found in SMApply")
         return
         
     last_sync = get_last_sync_time()
