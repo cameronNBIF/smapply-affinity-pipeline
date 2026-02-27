@@ -1,5 +1,4 @@
 from datetime import datetime
-from smapply.utils import choose_region
 
 def map_selector_of_research(selector_of_research_task, sector_mapping):
     #guard clause to prevent NoneType crashes
@@ -17,17 +16,6 @@ def map_selector_of_research(selector_of_research_task, sector_mapping):
                 return sector_list[response]
     
     return None
-
-def map_city_to_region(city, city_to_region_mapping):
-    if city is None or str(city).strip() == "":
-        return None
-    normalized_city = city.strip().title()  # Normalize formatting
-    if normalized_city in city_to_region_mapping:
-        return city_to_region_mapping[normalized_city]
-    else:
-        region = choose_region(city)
-        city_to_region_mapping[normalized_city] = region  # Save it for future use
-        return region
 
 def map_province(province_index, province_mapping, company_name):
     if province_index in province_mapping:

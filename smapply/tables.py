@@ -1,6 +1,6 @@
 from datetime import datetime
 from smapply.tasks import get_application_task, get_application_task_ID, get_task_value
-from smapply.mapping import map_fiscal_year, map_province, map_city_to_region, map_decision_date, map_selector_of_research
+from smapply.mapping import map_fiscal_year, map_selector_of_research
 from config import SECTOR_MAPPING, PROVINCE_MAPPING, CITY_TO_REGION_MAPPING
 from smapply.utils import clean_email, clean_value
 import logging

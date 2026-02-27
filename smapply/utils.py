@@ -1,7 +1,5 @@
 import pandas as pd
 import re
-import readchar
-from config import YEARS, REGIONS
 
 def assignment_exists(table_name, refnum, entity_id, conn):
     """Check if an association already exists in the join table."""
@@ -50,35 +48,3 @@ def clean_value(string_value):
         return float(s)
     except (ValueError, TypeError):
         return 0.0
-    
-def choose_fiscal_year():
-    YEARS
-    index = 0
-    while True:
-        print(f"\rSelect year: {YEARS[index]}  ", end="", flush=True)
-        
-        key = readchar.readkey()
-        
-        if key == readchar.key.RIGHT or key == readchar.key.DOWN or key == " ":
-            index = (index + 1) % len(YEARS)
-        elif key == readchar.key.LEFT or key == readchar.key.UP:
-            index = (index - 1) % len(YEARS)
-        elif key == readchar.key.ENTER:
-            print()
-            return YEARS[index]
-
-def choose_region(city):
-    REGIONS
-    index = 0
-    while True:
-        print(f"\rEnter region for city '{city}': {REGIONS[index]}  ", end="", flush=True)
-        
-        key = readchar.readkey()
-        
-        if key == readchar.key.RIGHT or key == readchar.key.DOWN or key == " ":
-            index = (index + 1) % len(REGIONS)
-        elif key == readchar.key.LEFT or key == readchar.key.UP:
-            index = (index - 1) % len(REGIONS)
-        elif key == readchar.key.ENTER:
-            print()
-            return REGIONS[index]
