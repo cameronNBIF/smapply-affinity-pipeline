@@ -3,6 +3,8 @@ import requests
 import logging
 from dotenv import load_dotenv
 
+from affinity.helpers import is_blank
+
 load_dotenv()
 
 AFFINITY_BASE_URL = os.environ.get("AFFINITY_BASE_URL", "https://api.affinity.co")
@@ -27,7 +29,7 @@ _entity_cache = {
 }
 
 def find_or_create_person(first_name: str, last_name: str, email: str) -> int:
-    if not email:
+    if is_blank(email):
         return None
         
     cache_key = email.strip().lower()
@@ -69,7 +71,7 @@ def find_or_create_person(first_name: str, last_name: str, email: str) -> int:
         return None
 
 def find_or_create_organization(company_name: str, email: str = None) -> int:
-    if not company_name:
+    if is_blank(company_name):
         return None
         
     cache_key = company_name.strip().lower()
