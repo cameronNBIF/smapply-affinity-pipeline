@@ -3,6 +3,8 @@ import requests
 import logging
 from dotenv import load_dotenv
 
+from affinity.helpers import is_blank
+
 load_dotenv()
 
 AFFINITY_BASE_URL = os.environ.get("AFFINITY_BASE_URL", "https://api.affinity.co")
@@ -27,10 +29,11 @@ _entity_cache = {
 }
 
 def find_or_create_person(first_name: str, last_name: str, email: str) -> int:
-    if not email:
+    if is_blank(email):
         return None
-        
-    cache_key = email.strip().lower()
+
+    email = str(email).strip()
+    cache_key = email.lower()
     
     # Check RAM before hitting the API!
     if cache_key in _entity_cache["persons"]:
@@ -69,34 +72,36 @@ def find_or_create_person(first_name: str, last_name: str, email: str) -> int:
         return None
 
 def find_or_create_organization(company_name: str, email: str = None) -> int:
-    if not company_name:
+    if is_blank(company_name):
         return None
-        
-    cache_key = company_name.strip().lower()
-    
-    # Check RAM before hitting the API!
+
+    company_name = str(company_name).strip()
+    cache_key = company_name.lower()
+
     if cache_key in _entity_cache["organizations"]:
-        _entity_cache["hits"] += 1 
+        _entity_cache["hits"] += 1
         return _entity_cache["organizations"][cache_key]
-        
+
     search_url = f"{AFFINITY_BASE_URL}/organizations"
     params = {"term": company_name}
-    
+
     try:
         r = requests.get(search_url, headers=AFFINITY_HEADERS, params=params, timeout=30)
         r.raise_for_status()
         results = r.json()
-        
+
         org_list = results.get("organizations", []) if isinstance(results, dict) else results
         for org in org_list:
             if isinstance(org, dict) and org.get("name", "").strip().lower() == cache_key:
                 org_id = org["id"]
-                _entity_cache["organizations"][cache_key] = org_id # Save to cache
+                _entity_cache["organizations"][cache_key] = org_id
                 return org_id
-                
+
         payload = {"name": company_name}
         free_email_providers = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com"]
-        if email and "@" in email:
+
+        # Defensive cast here — email may arrive as a pandas NaN float
+        if email and isinstance(email, str) and "@" in email:
             domain = email.split("@")[1].strip().lower()
             if domain not in free_email_providers:
                 payload["domains"] = [domain]
